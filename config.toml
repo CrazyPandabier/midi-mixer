@@ -1,0 +1,33 @@
+[controls]
+[controls.buttons]
+[controls.buttons.button1]
+control = 1
+channel = 1
+trigger = 0
+
+[controls.buttons.button2]
+control = 2
+channel = 2
+trigger = 1
+
+[controls.faders]
+[controls.faders.fader1]
+channel = 1
+control = 1
+min = 0
+max = 100
+
+[controls.faders.fader2]
+channel = 2
+control = 2
+min = 0
+max = 100
+
+[mapping]
+[application1]
+volume_control = ["fader1"] # Reference to fader key
+mute = ["button1"]           # Reference to button key
+
+[application2]
+volume_control = []           # No volume control
+mute = ["button2"]           # Reference to button key

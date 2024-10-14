@@ -2,6 +2,8 @@ use std::{collections::HashMap, fs, rc::Rc};
 
 use serde::{Deserialize, Serialize};
 
+use super::volume_control::VolumeControl;
+
 #[derive(Debug)]
 enum ConfigError {
     FaderNotFound(String),
@@ -87,8 +89,7 @@ struct ProfileConfig {
     groups: HashMap<String, GroupConfig>,
     mapping: HashMap<String, String>, // Mapping of Group to application
 }
-
-struct Profile {
+pub struct Profile {
     controls: Controls,
     mapping: HashMap<Group, String>,
 }
@@ -134,7 +135,7 @@ impl Profile {
         }
     }
 
-    fn new(config: &ProfileConfig) -> Result<Profile, ConfigError> {
+    pub fn new(config: &ProfileConfig) -> Result<Profile, ConfigError> {
         let buttons: HashMap<String, Rc<Button>> = config
             .controls
             .buttons
@@ -184,5 +185,41 @@ impl Profile {
             controls: Controls { buttons, faders },
             mapping,
         })
+    }
+
+    //Returns fader + application name/ output description, None if there is no application
+    pub fn get_volume_control(&self, channel: u8, control: u8) -> Option<(String, Rc<Fader>)> {
+        for map in &self.mapping {
+            if let Some(fader) = map
+                .0
+                .volume_control
+                .iter()
+                .find(|&f| f.channel == channel && f.control == control)
+            {
+                if !map.1.is_empty() {
+                    return Some((map.1.clone(), Rc::clone(fader)));
+                }
+            }
+        }
+
+        None
+    }
+
+    //Returns button + application name/ output description, None if there is no application
+    pub fn get_mute(&self, channel: u8, control: u8) -> Option<(String, Rc<Button>)> {
+        for map in &self.mapping {
+            if let Some(button) = map
+                .0
+                .mute
+                .iter()
+                .find(|&f| f.channel == channel && f.control == control)
+            {
+                if !map.1.is_empty() {
+                    return Some((map.1.clone(), Rc::clone(button)));
+                }
+            }
+        }
+
+        None
     }
 }

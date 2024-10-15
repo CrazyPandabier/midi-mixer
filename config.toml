@@ -7,10 +7,32 @@ control = 48
 channel = 0
 trigger = 127
 
+[controls.buttons.button2]
+control = 49
+channel = 0
+trigger = 127
+
+[controls.buttons.button3]
+control = 50
+channel = 0
+trigger = 127
+
 [controls.faders]
 [controls.faders.fader1]
 channel = 0
 control = 0
+min = 0
+max = 127
+
+[controls.faders.fader2]
+channel = 0
+control = 1
+min = 0
+max = 127
+
+[controls.faders.fader3]
+channel = 0
+control = 2
 min = 0
 max = 127
 
@@ -20,10 +42,15 @@ max = 127
     mute = ["button1"]
 
   [groups.group2]
-    volume_control = []
-    mute = []
+    volume_control = ["fader2"]
+    mute = ["button2"]
+
+    [groups.group3]
+    volume_control = ["fader3"]
+    mute = ["button3"]
 
 [mapping]
   "group1" = "firefox"
-  "group2" = "application_2"
+  "group2" = "wine64-preloader"
+  "group3" = "vesktop.bin"
 

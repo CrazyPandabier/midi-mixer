@@ -114,6 +114,7 @@ impl MidiMixer {
     ) -> Result<Option<Box<dyn VolumeControl>>, ControllerError> {
         let applications = self.get_applications()?;
         for app in applications {
+            println!("{}", app.get_name());
             if sink_name.trim().to_ascii_lowercase()
                 == app
                     .get_name()

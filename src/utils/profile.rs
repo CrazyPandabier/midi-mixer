@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::volume_control::VolumeControl;
 
 #[derive(Debug)]
-enum ConfigError {
+pub enum ConfigError {
     FaderNotFound(String),
     ButtonNotFound(String),
     GroupNotFound(String),
@@ -29,7 +29,7 @@ impl std::error::Error for ConfigError {}
 
 #[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Clone)]
 #[serde(rename_all = "snake_case")]
-struct Button {
+pub struct Button {
     control: u8,
     channel: u8,
     trigger: u8,
@@ -43,7 +43,7 @@ impl Button {
 
 #[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq, Clone)]
 #[serde(rename_all = "snake_case")]
-struct Fader {
+pub struct Fader {
     channel: u8,
     control: u8,
     min: u8,
@@ -84,12 +84,14 @@ struct Group {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-struct ProfileConfig {
+pub struct ProfileConfig {
+    midi_controller_name: String,
     controls: ControlsConfig, // Include Controls to ensure buttons and faders are defined
     groups: HashMap<String, GroupConfig>,
     mapping: HashMap<String, String>, // Mapping of Group to application
 }
 pub struct Profile {
+    midi_controller_name: String,
     controls: Controls,
     mapping: HashMap<Group, String>,
 }
@@ -106,7 +108,7 @@ impl Profile {
                 .map(|fader| {
                     faders
                         .get(fader)
-                        .map(|v| Rc::clone(v)) // Clone the Rc<Fader> only once
+                        .map(Rc::clone) // Clone the Rc<Fader> only once
                         .ok_or_else(|| ConfigError::FaderNotFound(fader.clone()))
                 })
                 .collect::<Result<Vec<Rc<Fader>>, ConfigError>>() // Collects Vec<Rc<Fader>>
@@ -119,20 +121,24 @@ impl Profile {
         group: &GroupConfig,
         buttons: &HashMap<String, Rc<Button>>,
     ) -> Result<Vec<Rc<Button>>, ConfigError> {
-        if !group.volume_control.is_empty() {
+        if !group.mute.is_empty() {
             group
-                .volume_control
+                .mute
                 .iter()
-                .map(|fader| {
+                .map(|button| {
                     buttons
-                        .get(fader)
-                        .map(|v| Rc::clone(v)) // Clone the Rc<Fader> only once
-                        .ok_or_else(|| ConfigError::FaderNotFound(fader.clone()))
+                        .get(button)
+                        .map(Rc::clone) // Clone the Rc<Fader> only once
+                        .ok_or_else(|| ConfigError::ButtonNotFound(button.clone()))
                 })
                 .collect::<Result<Vec<Rc<Button>>, ConfigError>>() // Collects Vec<Rc<Fader>>
         } else {
             Ok(Vec::new()) // Return an empty Vec if volume_control is empty
         }
+    }
+
+    pub fn get_midi_controller_name(&self) -> String {
+        self.midi_controller_name.clone()
     }
 
     pub fn new(config: &ProfileConfig) -> Result<Profile, ConfigError> {
@@ -182,6 +188,7 @@ impl Profile {
             .collect::<Result<HashMap<Group, String>, ConfigError>>()?;
 
         Ok(Profile {
+            midi_controller_name: config.midi_controller_name.clone(),
             controls: Controls { buttons, faders },
             mapping,
         })
@@ -221,5 +228,95 @@ impl Profile {
         }
 
         None
+    }
+
+    pub fn serialize(&self) -> ProfileConfig {
+        let buttons: HashMap<String, Button> = self
+            .controls
+            .buttons
+            .clone()
+            .into_iter()
+            .map(|(key, rc_button)| {
+                (
+                    key,
+                    Rc::try_unwrap(rc_button).unwrap_or_else(|rc| (*rc).clone()),
+                )
+            })
+            .collect();
+        let faders: HashMap<String, Fader> = self
+            .controls
+            .faders
+            .clone()
+            .into_iter()
+            .map(|(key, rc_fader)| {
+                (
+                    key,
+                    Rc::try_unwrap(rc_fader).unwrap_or_else(|rc| (*rc).clone()),
+                )
+            })
+            .collect();
+
+        let controls = ControlsConfig {
+            buttons: buttons.clone(),
+            faders: faders.clone(),
+        };
+        let groups = self
+            .mapping
+            .clone()
+            .into_iter()
+            .map(|(group, sink_name)| {
+                let volume_control = faders
+                    .clone()
+                    .into_iter()
+                    .filter(|(_, fader)| {
+                        for rc_fader in group.volume_control.clone() {
+                            if rc_fader.channel == fader.channel
+                                && rc_fader.control == fader.control
+                            {
+                                return true;
+                            }
+                        }
+                        false
+                    })
+                    .map(|(name, _)| name)
+                    .collect();
+
+                let mute = buttons
+                    .clone()
+                    .into_iter()
+                    .filter(|(_, button)| {
+                        for rc_button in group.mute.clone() {
+                            if rc_button.channel == button.channel
+                                && rc_button.control == button.control
+                            {
+                                return true;
+                            }
+                        }
+                        false
+                    })
+                    .map(|(name, _)| name)
+                    .collect();
+
+                let config = GroupConfig {
+                    volume_control,
+                    mute,
+                };
+                (group.name, config)
+            })
+            .collect();
+        let mapping = self
+            .mapping
+            .clone()
+            .into_iter()
+            .map(|(group, sink_name)| (sink_name, group.name))
+            .collect();
+
+        let config = ProfileConfig {
+            midi_controller_name: self.midi_controller_name.clone(),
+            controls,
+            groups,
+            mapping,
+        };
+        config
     }
 }

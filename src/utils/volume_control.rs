@@ -6,10 +6,9 @@ use pulsectl::controllers::DeviceControl;
 use pulsectl::controllers::SinkController;
 use pulsectl::ControllerError;
 
-use crate::MidiMixerConfig;
-
 pub trait VolumeControl {
     fn set_volume(&self, val: f64) -> Result<(), ControllerError>;
+    fn toggle_mute(&self) -> Result<(), ControllerError>;
     fn mute(&self) -> Result<(), ControllerError>;
     fn unmute(&self) -> Result<(), ControllerError>;
     fn get_name(&self) -> &str;
@@ -54,12 +53,26 @@ impl VolumeControl for OutputDevice {
 
         let delta = val - (current_volume as f64 / 100.0);
 
-        println!("delta {}", delta);
-
         if delta < 0.0 {
             handler.decrease_device_volume_by_percent(self.index, delta.abs());
         } else {
             handler.increase_device_volume_by_percent(self.index, delta);
+        }
+
+        Ok(())
+    }
+
+    fn toggle_mute(&self) -> Result<(), ControllerError> {
+        let muted = self
+            .handler
+            .borrow_mut()
+            .get_device_by_index(self.index)?
+            .mute;
+
+        if muted {
+            self.unmute()?;
+        } else {
+            self.mute()?;
         }
 
         Ok(())
@@ -115,12 +128,22 @@ impl VolumeControl for Application {
 
         let delta = val - (current_volume as f64 / 100.0);
 
-        println!("delta {}", delta);
-
         if delta < 0.0 {
             handler.decrease_app_volume_by_percent(self.index, delta.abs());
         } else {
             handler.increase_app_volume_by_percent(self.index, delta);
+        }
+
+        Ok(())
+    }
+
+    fn toggle_mute(&self) -> Result<(), ControllerError> {
+        let muted = self.handler.borrow_mut().get_app_by_index(self.index)?.mute;
+
+        if muted {
+            self.unmute();
+        } else {
+            self.mute();
         }
 
         Ok(())

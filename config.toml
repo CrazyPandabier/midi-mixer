@@ -1,33 +1,29 @@
+midi_controller_name = "nanoKONTROL2:nanoKONTROL2 nanoKONTROL2 _ CTR 28:0"
+
 [controls]
 [controls.buttons]
 [controls.buttons.button1]
-control = 1
-channel = 1
-trigger = 0
-
-[controls.buttons.button2]
-control = 2
-channel = 2
-trigger = 1
+control = 48
+channel = 0
+trigger = 127
 
 [controls.faders]
 [controls.faders.fader1]
-channel = 1
-control = 1
+channel = 0
+control = 0
 min = 0
-max = 100
+max = 127
 
-[controls.faders.fader2]
-channel = 2
-control = 2
-min = 0
-max = 100
+[groups]
+  [groups.group1]
+    volume_control = ["fader1"]
+    mute = ["button1"]
+
+  [groups.group2]
+    volume_control = []
+    mute = []
 
 [mapping]
-[application1]
-volume_control = ["fader1"] # Reference to fader key
-mute = ["button1"]           # Reference to button key
+  "group1" = "firefox"
+  "group2" = "application_2"
 
-[application2]
-volume_control = []           # No volume control
-mute = ["button2"]           # Reference to button key
